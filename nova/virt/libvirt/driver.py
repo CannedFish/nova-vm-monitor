@@ -4524,6 +4524,8 @@ class LibvirtDriver(driver.ComputeDriver):
         virt_type = CONF.libvirt.virt_type
         guest = vconfig.LibvirtConfigGuest()
         guest.virt_type = virt_type
+        # NOTE(cannedfish): For startup arguments
+        guest.startup_args = CONF.libvirt.startup_args
         guest.name = instance.name
         guest.uuid = instance.uuid
         # We are using default unit for memory: KiB
