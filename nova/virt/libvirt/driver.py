@@ -138,6 +138,11 @@ libvirt_opts = [
                default='kvm',
                choices=('kvm', 'lxc', 'qemu', 'uml', 'xen', 'parallels'),
                help='Libvirt domain type'),
+    # NOTE(cannedfish): For startup arguments
+    cfg.StrOpt('startup_args',
+               help='Add qemu startup arguments'),
+    cfg.StrOpt('qemu_ns',
+               help='qemu namespace'),
     cfg.StrOpt('connection_uri',
                default='',
                help='Override the default libvirt URI '
@@ -4525,7 +4530,8 @@ class LibvirtDriver(driver.ComputeDriver):
         guest = vconfig.LibvirtConfigGuest()
         guest.virt_type = virt_type
         # NOTE(cannedfish): For startup arguments
-        guest.startup_args = CONF.libvirt.startup_args
+        guest.startup_args = True
+        guest.qemu_ns = CONF.libvirt.qemu_ns
         guest.name = instance.name
         guest.uuid = instance.uuid
         # We are using default unit for memory: KiB

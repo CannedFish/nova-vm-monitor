@@ -40,8 +40,6 @@ LOG = logging.getLogger(__name__)
 
 # Namespace to use for Nova specific metadata items in XML
 NOVA_NS = "http://openstack.org/xmlns/libvirt/nova/1.0"
-# NOTE(cannedfish): For startup arguments
-QEMU_NS = "http://libvirt.org/schemas/domain/qemu/1.0"
 
 
 class LibvirtConfigObject(object):
@@ -1957,6 +1955,7 @@ class LibvirtConfigGuest(LibvirtConfigObject):
         self.idmaps = []
         # NOTE(cannedfish): For startup arguments
         self.startup_args = False
+        self.qemu_ns = ""
 
     def _format_basic_props(self, root):
         root.append(self._text_node("uuid", self.uuid))
@@ -2045,8 +2044,9 @@ class LibvirtConfigGuest(LibvirtConfigObject):
 
     # NOTE(cannedfish): For startup arguments
     def _format_qemu_startup_args(self, root):
-        qemu_cmd = etree.Element("qemu:commandline")
-        cmd_arg = etree.Element("qemu:arg")
+        qemu_cmd = etree.Element("{"+self.qemu_ns+"}commandline", 
+                                 nsmap={"qemu": self.qemu_ns})
+        cmd_arg = etree.Element("{"+self.qemu_ns+"}arg")
         cmd_arg.set("value", "-s")
         qemu_cmd.append(cmd_arg)
         root.append(qemu_cmd)
@@ -2058,8 +2058,8 @@ class LibvirtConfigGuest(LibvirtConfigObject):
 
         # NOTE(cannedfish): For startup arguments
         if self.startup_args:
-            root.set("xmlns:qemu", QEMU_NS)
             self._format_qemu_startup_args(root)
+            LOG.debug("Add start up arguments")
 
         self._format_basic_props(root)
 
