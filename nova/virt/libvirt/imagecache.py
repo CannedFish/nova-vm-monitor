@@ -457,14 +457,14 @@ class ImageCacheManager(imagecache.ImageCacheManager):
             LOG.info(_LI('Removing base or swap file: %s'), base_file)
             try:
                 # NOTE: added by cannedfish
-                f_size = int(math.ceil(os.stat(base_file).st_size/1024/1024))
+                f_size = int(math.ceil(os.stat(base_file).st_size/1024.0/1024.0))
                 libvirt_utils.clear_image(f_size, base_file)
                 os.remove(base_file)
                 if remove_sig:
                     signature = get_info_filename(base_file)
                     if os.path.exists(signature):
                         # NOTE: added by cannedfish
-                        f_size = int(math.ceil(os.stat(signature).st_size/1024/1024))
+                        f_size = int(math.ceil(os.stat(signature).st_size/1024.0/1024.0))
                         libvirt_utils.clear_image(f_size, signature)
                         os.remove(signature)
             except OSError as e:
