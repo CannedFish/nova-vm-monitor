@@ -21,27 +21,52 @@
 import errno
 import os
 import re
+# NOTE: added by cannedfish
+import math
 
 from lxml import etree
 from oslo_concurrency import processutils
 from oslo_config import cfg
 from oslo_log import log as logging
+# NOTE: added by cannedfish
+from oslo_utils import units
+from oslo_utils import strutils
 
 from nova.compute import arch
 from nova.i18n import _
 from nova.i18n import _LI
+# NOTE: added by cannedfish
+from nova.i18n import _LW
 from nova import utils
 from nova.virt import images
 from nova.virt.libvirt import config as vconfig
 from nova.virt.libvirt.volume import remotefs
 from nova.virt import volumeutils
+# NOTE: added by cannedfish
+from nova import exception
 
 libvirt_opts = [
     cfg.BoolOpt('snapshot_compression',
                 default=False,
                 help='Compress snapshot images when possible. This '
                      'currently applies exclusively to qcow2 images'),
-    ]
+    # NOTE: added by cannedfish
+    cfg.StrOpt('image_clear',
+                default='none',
+                choices=['none', 'zero', 'shred'],
+                help='Method used to wipe old images'),
+    cfg.IntOpt('image_clear_size',
+                default=0,
+                help='Size in MiB to wipe at start of old images. 0 => all'),
+    cfg.StrOpt('image_clear_ionice',
+                default=None,
+                help='The flag to pass to ionice to alter the i/o priority '
+                    'of the process used to zero a volume after deletion, '
+                    'for example "-c3" for idle only priority.'),
+    cfg.StrOpt('image_dd_blocksize',
+                default='1M',
+                help='The default block size used when copying/clearing images'),
+]
 
 CONF = cfg.CONF
 CONF.register_opts(libvirt_opts, 'libvirt')
@@ -480,3 +505,64 @@ def is_mounted(mount_path, source=None):
 
 def is_valid_hostname(hostname):
     return re.match(r"^[\w\-\.:]+$", hostname)
+
+# NOTE: added by cannedfish
+def copy_image2(src, dst, image_size_m, block_size, sync, ionice):
+    extra_flags = []
+    if sync:
+        conv_options = 'conv=fdatasync'
+        extra_flags.append(conv_options)
+
+    if block_size.startswith(('-', '0')) or '.' in block_size:
+        LOG.warning(_LW("Incorrect value error: %(block_size)s, "
+                        "it may indicate that \'image_dd_blocksize\' "
+                        "was configured incorrectly. Fall back to default."),
+                    {'block_size': block_size})
+        CONF.clear_override('image_dd_blocksize')
+        block_size = CONF.image_dd_blocksize
+        bs = strutils.string_to_bytes('%sB' % block_size)
+    count = int(math.ceil(image_size_m * units.Mi / bs))
+    
+    cmd = ['dd', 'if=%s' % src, 'of=%s' % dst, \
+            'count=%d' % count, 'bs=%s' % block_size]
+    cmd.extend(extra_flags)
+
+    if ionice is not None:
+        cmd = ['ionice', ionice] + cmd
+
+    execute(*cmd, run_as_root=True)
+
+def clear_image(image_size, image_path, image_clear=None,
+        image_clear_size=None, image_clear_ionice=None):
+    """Unprovision old images to prevent data leaking"""
+    if image_clear is None:
+        image_clear = CONF.image_clear
+
+    if image_clear == 'none':
+        return 
+
+    if image_clear_size is None:
+        image_clear_size = CONF.image_clear_size
+
+    if image_clear_size == 0:
+        image_clear_size = image_size
+
+    if image_clear_ionice is None:
+        image_clear_ionice = CONF.image_clear_ionice
+
+    LOG.info(_LI("Performing secure image delete: %s"), image_path)
+
+    if image_clear == 'zero':
+        return copy_image2('/dev/zero', image_path, image_clear_size,
+                CONF.image_dd_blocksize, sync=True, ionice=image_clear_ionice)
+    elif image_clear == 'shred':
+        clear_cmd = ['shred', '-n3']
+        if image_clear_size:
+            clear_cmd.append('-s%dMiB' % image_clear_size)
+    else:
+        raise exception.InvalidConfigurationValue(option='image_clear', 
+                value=image_clear)
+
+    clear_cmd.append(image_path)
+    execute(*clear_cmd, run_as_root=True)
+

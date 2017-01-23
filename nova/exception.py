@@ -1934,3 +1934,8 @@ class DatabaseMigrationError(NovaException):
 
 class HostMappingNotFound(Invalid):
     msg_fmt = _("Host '%(name)s' is not mapped to any cell")
+
+# NOTE: added by cannedfish
+class InvalidConfigurationValue(Invalid):
+    msg_fmt = _("Value '%(value)s' is not valid for \
+            configuration option '%(option)s'")
