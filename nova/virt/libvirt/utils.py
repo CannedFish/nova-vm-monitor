@@ -518,8 +518,8 @@ def copy_image2(src, dst, image_size_m, block_size, sync, ionice):
                         "it may indicate that \'image_dd_blocksize\' "
                         "was configured incorrectly. Fall back to default."),
                     {'block_size': block_size})
-        CONF.clear_override('image_dd_blocksize')
-        block_size = CONF.image_dd_blocksize
+        CONF.libvirt.clear_override('image_dd_blocksize')
+        block_size = CONF.libvirt.image_dd_blocksize
         bs = strutils.string_to_bytes('%sB' % block_size)
     count = int(math.ceil(image_size_m * units.Mi / bs))
     
@@ -536,25 +536,25 @@ def clear_image(image_size, image_path, image_clear=None,
         image_clear_size=None, image_clear_ionice=None):
     """Unprovision old images to prevent data leaking"""
     if image_clear is None:
-        image_clear = CONF.image_clear
+        image_clear = CONF.libvirt.image_clear
 
     if image_clear == 'none':
         return 
 
     if image_clear_size is None:
-        image_clear_size = CONF.image_clear_size
+        image_clear_size = CONF.libvirt.image_clear_size
 
     if image_clear_size == 0:
         image_clear_size = image_size
 
     if image_clear_ionice is None:
-        image_clear_ionice = CONF.image_clear_ionice
+        image_clear_ionice = CONF.libvirt.image_clear_ionice
 
     LOG.info(_LI("Performing secure image delete: %s"), image_path)
 
     if image_clear == 'zero':
         return copy_image2('/dev/zero', image_path, image_clear_size,
-                CONF.image_dd_blocksize, sync=True, ionice=image_clear_ionice)
+                CONF.libvirt.image_dd_blocksize, sync=True, ionice=image_clear_ionice)
     elif image_clear == 'shred':
         clear_cmd = ['shred', '-n3']
         if image_clear_size:
