@@ -508,6 +508,7 @@ def is_valid_hostname(hostname):
 
 # NOTE: added by cannedfish
 def copy_image2(src, dst, image_size_m, block_size, sync, ionice):
+    LOG.info(_LI("Performing image clear: %s"), dst)
     extra_flags = []
     if sync:
         conv_options = 'conv=fdatasync'
