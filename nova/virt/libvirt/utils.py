@@ -521,7 +521,7 @@ def copy_image2(src, dst, image_size_m, block_size, sync, ionice):
                     {'block_size': block_size})
         CONF.libvirt.clear_override('image_dd_blocksize')
         block_size = CONF.libvirt.image_dd_blocksize
-        bs = strutils.string_to_bytes('%sB' % block_size)
+    bs = strutils.string_to_bytes('%sB' % block_size)
     count = int(math.ceil(image_size_m * units.Mi / bs))
     
     cmd = ['dd', 'if=%s' % src, 'of=%s' % dst, \

@@ -24,6 +24,8 @@ import hashlib
 import os
 import re
 import time
+# NOTE: added by cannedfish
+import math
 
 from oslo_concurrency import lockutils
 from oslo_concurrency import processutils
