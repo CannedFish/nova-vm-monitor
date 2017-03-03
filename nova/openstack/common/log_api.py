@@ -143,6 +143,7 @@ def send_msg(user, resource, action, result, op_type, msg):
         "operation_type": op_type, 
         "message": msg
     }
+    LOG.debug("*********** log payload: %s" % payload)
 
     try:
         operation_return = client.get(URL_, params=payload, timeout=2)
