@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
+# NOTE: this file is added by cannedfish
 
 import sys
 import json
 import requests
 import base64
+import socket, fcntl, struct
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -17,6 +19,9 @@ opts = [
             min=1,
             max=65535,
             help='ETCD port on which to listen for incoming requests'),
+    cfg.StrOpt('ifname',
+            default='lo',
+            help='The ifname of this node')
 ]
 
 CONF = cfg.CONF
@@ -24,30 +29,40 @@ CONF.register_cli_opts(opts)
 LOG = logging.getLogger(__name__)
 
 ADDR_KEY = base64.b64encode('PUBLIC_LOGSERVERADDR')
-ret = requests.post('http://%s:%d/v3alpha/kv/range' % \
-        (CONF.etcd_host, CONF.etcd_port), \
-        data=json.dumps({'key':ADDR_KEY}))
-LOG_ADDR = base64.b64decode(ret.json()['kvs'][0]['value'])
-
-# Initcloud API URL
 URL = 'http://%s/login' % LOG_ADDR
 
-client = requests.session()
+def _get_client():
+    try:
+        ret = requests.post('http://%s:%d/v3alpha/kv/range' % \
+                (CONF.etcd_host, CONF.etcd_port), \
+                data=json.dumps({'key':ADDR_KEY}), timeout=2)
+        LOG_ADDR = base64.b64decode(ret.json()['kvs'][0]['value'])
 
-# Retrieve the CSRF token first
-# Sets cookie
-client.get(URL, verify = False) 
-csrftoken = client.cookies['csrftoken']
-print "******** csrftoken **********"
-print csrftoken
+        # Initcloud API URL
+        c = requests.session()
 
-# Authenticate
-# User created by initcloud(openstack user)
-login_data = dict(username='more', password='ydd1121NN', csrfmiddlewaretoken=csrftoken, next='/')
-login_return = client.post(URL, data=login_data, headers=dict(Referer=URL))
-print "*********** auth status *********"
-print login_return.status_code
+        # Retrieve the CSRF token first
+        # Sets cookie
+        c.get(URL, verify = False, timeout=2) 
+        csrftoken = c.cookies['csrftoken']
+        LOG.debug("******** csrftoken **********: %s" % csrftoken)
 
+        # Authenticate
+        # User created by initcloud(openstack user)
+        login_data = dict(username='more', 
+                password='ydd1121NN', 
+                csrfmiddlewaretoken=csrftoken, 
+                next='/')
+        login_return = c.post(URL, data=login_data, headers=dict(Referer=URL))
+        LOG.debug("*********** auth status *********: %s" % login_return.status_code)
+
+        return c
+    except Exception, e:
+        LOG.error('Get auth client of initcloud failed: %s' % e)
+        return None
+
+# TODO: how to handle disconnect?
+client = _get_client()
 
 # Current Operation  Resource, added if necessary
 """
@@ -96,14 +111,24 @@ Operation_Types(
 )
 
 """
+def _get_ip_address():
+    """
+    return the IP address of this node
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return socket.inet_ntoa(fcntl.ioctl(
+                 s.fileno(),
+                 0x8915,
+                 struct.pack('256s', CONF.ifname[:15]))[20:24])
+
 # request ulr with get method
 URL_ = "http://%s/api/operation/collector/" % LOG_ADDR
+SELF_IP_ADDRESS = _get_ip_address()
 
-def send_msg(user, resource, resource_name, action, result, op_type, msg):
+def send_msg(user, resource, action, result, op_type, msg):
     """
     user: operator, default is 'auto'
     resource: the name of safe module
-    resource_name: IP of this address
     action: which action did you perform
     result: the result of action, default is 1
     op_type: 0->logging, 1->alarm
@@ -112,7 +137,7 @@ def send_msg(user, resource, resource_name, action, result, op_type, msg):
     payload = {
         "user": user, 
         "resource": resource, 
-        "resource_name": resource_name, 
+        "resource_name": SELF_IP_ADDRESS, 
         "action": action, 
         "result": result, 
         "operation_type": op_type, 
