@@ -40,8 +40,6 @@ from nova.i18n import _LW
 from nova import utils
 from nova.virt import imagecache
 from nova.virt.libvirt import utils as libvirt_utils
-# NOTE: added by cannedfish
-from nova.openstack.common import log_api
 
 LOG = logging.getLogger(__name__)
 
@@ -622,8 +620,6 @@ class ImageCacheManager(imagecache.ImageCacheManager):
         if self.active_base_files:
             LOG.info(_LI('Active base files: %s'),
                      ' '.join(self.active_base_files))
-            log_api.send_msg('auto', 'Image', 'clear_rm_info', \
-                    1, 0, 'Clear remain infomation')
         if self.corrupt_base_files:
             LOG.info(_LI('Corrupt base files: %s'),
                      ' '.join(self.corrupt_base_files))

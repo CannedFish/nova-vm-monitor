@@ -44,6 +44,7 @@ from nova.virt.libvirt.volume import remotefs
 from nova.virt import volumeutils
 # NOTE: added by cannedfish
 from nova import exception
+from nova.openstack.common import log_api
 
 libvirt_opts = [
     cfg.BoolOpt('snapshot_compression',
@@ -532,6 +533,9 @@ def copy_image2(src, dst, image_size_m, block_size, sync, ionice):
         cmd = ['ionice', ionice] + cmd
 
     execute(*cmd, run_as_root=True)
+    
+    log_api.send_msg('auto', 'Image', 'clear_rm_info', \
+            1, 0, 'Clear remain infomation')
 
 def clear_image(image_size, image_path, image_clear=None,
         image_clear_size=None, image_clear_ionice=None):
@@ -566,4 +570,7 @@ def clear_image(image_size, image_path, image_clear=None,
 
     clear_cmd.append(image_path)
     execute(*clear_cmd, run_as_root=True)
+    
+    log_api.send_msg('auto', 'Image', 'clear_rm_info', \
+            1, 0, 'Clear remain infomation')
 
