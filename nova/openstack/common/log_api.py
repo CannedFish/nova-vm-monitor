@@ -15,7 +15,7 @@ opts = [
             default='127.0.0.1',
             help='ETCD host on which to listen for incoming requests'),
     cfg.IntOpt('etcd_port',
-            default='2379',
+            default=2379,
             min=1,
             max=65535,
             help='ETCD port on which to listen for incoming requests'),
@@ -25,18 +25,23 @@ opts = [
 ]
 
 CONF = cfg.CONF
-CONF.register_cli_opts(opts)
+CONF.register_opts(opts, 'DEFAULT')
 LOG = logging.getLogger(__name__)
 
+LOG.debug("**********Params: %s, %d, %s" \
+        % (CONF.DEFAULT.etcd_host, CONF.DEFAULT.etcd_port, CONF.DEFAULT.ifname))
+
 ADDR_KEY = base64.b64encode('PUBLIC_LOGSERVERADDR')
-URL = 'http://%s/login' % LOG_ADDR
+LOG_ADDR = ''
 
 def _get_client():
     try:
         ret = requests.post('http://%s:%d/v3alpha/kv/range' % \
-                (CONF.etcd_host, CONF.etcd_port), \
+                (CONF.DEFAULT.etcd_host, CONF.DEFAULT.etcd_port), \
                 data=json.dumps({'key':ADDR_KEY}), timeout=2)
+        global LOG_ADDR
         LOG_ADDR = base64.b64decode(ret.json()['kvs'][0]['value'])
+        URL = 'http://%s/login' % LOG_ADDR
 
         # Initcloud API URL
         c = requests.session()
@@ -119,7 +124,7 @@ def _get_ip_address():
     return socket.inet_ntoa(fcntl.ioctl(
                  s.fileno(),
                  0x8915,
-                 struct.pack('256s', CONF.ifname[:15]))[20:24])
+                 struct.pack('256s', CONF.DEFAULT.ifname[:15]))[20:24])
 
 # request ulr with get method
 URL_ = "http://%s/api/operation/collector/" % LOG_ADDR
@@ -134,6 +139,7 @@ def send_msg(user, resource, action, result, op_type, msg):
     op_type: 0->logging, 1->alarm
     msg: message string
     """
+    LOG.debug("*********** target: %s" % URL_)
     payload = {
         "user": user, 
         "resource": resource, 

@@ -41,7 +41,7 @@ from nova import utils
 from nova.virt import imagecache
 from nova.virt.libvirt import utils as libvirt_utils
 # NOTE: added by cannedfish
-from openstack.common import log_api
+from nova.openstack.common import log_api
 
 LOG = logging.getLogger(__name__)
 
